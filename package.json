@@ -1,0 +1,57 @@
+{
+  "name": "mydevhub",
+  "version": "1.0.1",
+  "description": "Your command center for managing development projects. Organize, track, and launch your projects with ease.",
+  "author": "LevrikM",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "publish": "electron-builder --publish=always"
+  },
+  "build": {
+    "appId": "com.mydevhub.app",
+    "productName": "myDevHub",
+    "directories": {
+      "output": "final-build"
+    },
+    "win": {
+      "target": "nsis",
+      "publisherName": "LevrikM",
+      "requestedExecutionLevel": "asInvoker",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
+      "createDesktopShortcut": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "myDevHub",
+      "artifactName": "myDevHub-Setup-${version}.${ext}",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "LevrikM",
+      "repo": "mydevhub-dev"
+    }
+  },
+  "dependencies": {
+    "cross-spawn": "^7.0.6",
+    "electron-store": "^8.1.0",
+    "fix-path": "^3.0.0",
+    "kill-port": "^2.0.1",
+    "simple-git": "^3.30.0",
+    "electron-updater": "^6.1.7"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  }
+}

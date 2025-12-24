@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>myDevHub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body>
+    <div id="setup-screen" class="setup-screen hidden">
+        <div class="setup-box">
+            <div class="setup-header">
+                <div class="setup-icon">
+                    <i class="ri-code-s-slash-line"></i>
+                </div>
+                <h1 data-i18n="setup.welcome">Welcome to myDevHub</h1>
+                <p class="setup-subtitle" data-i18n="setup.subtitle">Your command center. Choose your main folder to get started.</p>
+            </div>
+            
+            <div class="setup-content">
+                <div class="setup-features">
+                    <div class="feature-item">
+                        <i class="ri-folder-open-line"></i>
+                        <div>
+                            <strong data-i18n="setup.feature1.title">Project Management</strong>
+                            <span data-i18n="setup.feature1.desc">Organize all your projects in one place</span>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <i class="ri-terminal-box-line"></i>
+                        <div>
+                            <strong data-i18n="setup.feature2.title">Quick Actions</strong>
+                            <span data-i18n="setup.feature2.desc">Run scripts and commands instantly</span>
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <i class="ri-git-branch-line"></i>
+                        <div>
+                            <strong data-i18n="setup.feature3.title">Git Integration</strong>
+                            <span data-i18n="setup.feature3.desc">Track repository status at a glance</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setup-actions">
+                    <button id="setup-btn" class="big-btn setup-primary-btn" data-i18n="setup.selectWorkspace">
+                        <i class="ri-folder-2-line"></i> Select Workspace Folder
+                    </button>
+                    <p class="setup-hint" data-i18n="setup.hint">Select the folder where your development projects are located</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="title-bar">
+        <button class="win-btn" onclick="window.api.minimize()">─</button>
+        <button class="win-btn" onclick="window.api.maximize()">□</button>
+        <button class="win-btn win-close" onclick="window.api.close()">×</button>
+    </div>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo logo-pulse" onclick="window.api.openExternal('https://mydevhub.vercel.app/')" title="Open website">
+                <i class="ri-code-s-slash-line"></i> myDevHub
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="sidebar.main">Main</div>
+                    <div class="menu-item active" data-tab="dashboard">
+                        <i class="ri-dashboard-line"></i>
+                        <span data-i18n="sidebar.dashboard">Dashboard</span>
+                        <span class="menu-badge" id="badge-total" style="display: none;">0</span>
+                    </div>
+                    <div class="menu-item" data-tab="favorites">
+                        <i class="ri-star-line"></i>
+                        <span data-i18n="sidebar.favorites">Favorites</span>
+                        <span class="menu-badge" id="badge-fav" style="display: none;">0</span>
+                    </div>
+                    <div class="menu-item" data-tab="recent">
+                        <i class="ri-time-line"></i>
+                        <span data-i18n="sidebar.recent">Recent</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title" data-i18n="sidebar.tools">Tools</div>
+                    <div class="menu-item" data-tab="terminal">
+                        <i class="ri-terminal-box-line"></i>
+                        <span data-i18n="sidebar.terminal">Terminal</span>
+                    </div>
+                    <div class="menu-item" data-tab="scripts">
+                        <i class="ri-play-list-line"></i>
+                        <span data-i18n="sidebar.scripts">Scripts</span>
+                    </div>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="menu-item" data-tab="settings">
+                    <i class="ri-settings-4-line"></i>
+                    <span data-i18n="sidebar.settings">Settings</span>
+                </div>
+                <div class="menu-item" onclick="window.api.openExternal('https://github.com/LevrikM/mydevhub-dev')">
+                    <i class="ri-github-fill"></i>
+                    <span data-i18n="sidebar.github">GitHub</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="content">
+            
+            <div id="view-dashboard" class="view-section">
+                <div class="header-stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label" data-i18n="stats.totalProjects">Total Projects</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-active">0</div>
+                        <div class="stat-label" data-i18n="stats.modifiedToday">Modified Today</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-fav">0</div>
+                        <div class="stat-label" data-i18n="stats.favorites">Favorites</div>
+                    </div>
+                </div>
+
+                <div class="section-title">
+                    <span data-i18n="dashboard.yourProjects">Your Projects</span>
+                    <input type="text" id="search-input" data-i18n-placeholder="dashboard.search" placeholder="Search..." class="form-input" style="width: 200px;">
+                </div>
+                <div id="all-projects-grid" class="projects-grid">Scanning...</div>
+            </div>
+
+            <div id="view-favorites" class="view-section hidden">
+                <div class="section-title">
+                    <span data-i18n="favorites.title">Favorite Projects</span>
+                    <input type="text" id="search-favorites" data-i18n-placeholder="dashboard.search" placeholder="Search..." class="form-input" style="width: 200px;">
+                </div>
+                <div id="favorites-grid" class="projects-grid"></div>
+            </div>
+
+            <div id="view-recent" class="view-section hidden">
+                <div class="section-title">
+                    <span data-i18n="recent.title">Recently Opened</span>
+                </div>
+                <div id="recent-grid" class="projects-grid"></div>
+            </div>
+
+            <div id="view-terminal" class="view-section hidden">
+                <div class="section-title">
+                    <span data-i18n="terminal.title">Terminal</span>
+                </div>
+                <div class="terminal-container">
+                    <div id="global-terminal" class="terminal-window">> Ready...</div>
+                    <div class="terminal-input-row">
+                        <input type="text" id="terminal-input" class="form-input" placeholder="Enter command..." style="flex: 1;">
+                        <button id="terminal-send" class="action-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-scripts" class="view-section hidden">
+                <div class="section-title">
+                    <span data-i18n="scripts.title">All Scripts</span>
+                </div>
+                <div id="all-scripts-list" class="scripts-container"></div>
+            </div>
+
+            <div id="view-settings" class="view-section hidden">
+                <div class="section-title" data-i18n="settings.title">Налаштування системи</div>
+                
+                <div class="settings-container settings-full-width">
+                    <div class="settings-card">
+                        <h3 class="settings-card-title" data-i18n="settings.general">Загальні</h3>
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="settings.rootFolder">Коренева папка</label>
+                            <div style="display:flex; gap:10px;">
+                                <input type="text" id="setting-path-display" class="form-input" readonly>
+                                <button id="setting-change-path" class="action-btn" style="background:var(--accent); color:black;" data-i18n="settings.change">Змінити</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label"><span data-i18n="settings.scanDepth">Глибина сканування</span>: <span id="scan-depth-val" style="color:var(--accent); font-weight: 700;">3</span></label>
+                            <input type="range" id="scan-depth" min="1" max="5" class="form-range" style="width:100%; accent-color:var(--accent);">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                <input type="checkbox" id="setting-show-hidden" style="transform: scale(1.3); accent-color: var(--accent);">
+                                <span data-i18n="settings.showHidden">Показувати приховані файли</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="settings.language">Мова інтерфейсу</label>
+                            <select id="setting-language" class="form-input" style="width: 100%;">
+                                <option value="uk" data-i18n="lang.uk">Українська</option>
+                                <option value="en" data-i18n="lang.en">English</option>
+                                <option value="ru" data-i18n="lang.ru">Русский</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3 class="settings-card-title" data-i18n="update.version">Оновлення</h3>
+                        <div class="version-info">
+                            <div class="version-item">
+                                <span class="version-label" data-i18n="update.current">Поточна версія</span>
+                                <span class="version-value" id="current-version">1.0.0</span>
+                            </div>
+                            <div class="update-status" id="update-status"></div>
+                            <div class="update-actions">
+                                <button id="check-update-btn" class="action-btn" style="background: var(--accent); color: black;" data-i18n="update.check">Перевірити оновлення</button>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="auto-update-checkbox" style="transform: scale(1.2); accent-color: var(--accent);">
+                                    <span data-i18n="update.auto">Автоматичне оновлення</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions">
+                        <button id="save-settings" class="big-btn" data-i18n="settings.save">Зберегти налаштування</button>
+                        <button id="reset-app" class="action-btn reset-btn" data-i18n="settings.reset">Скинути все</button>
+                    </div>
+
+                    <div class="levro-footer">
+                        <span data-i18n="footer.createdBy">Created by</span> <span class="levro-name">LEVRO</span>
+                        <div style="margin-top: 10px; display: flex; gap: 15px; justify-content: center; align-items: center;">
+                            <a href="#" onclick="window.api.openExternal('https://mydevhub.vercel.app/'); return false;" class="footer-link">
+                                <i class="ri-global-line"></i> <span data-i18n="footer.website">Website</span>
+                            </a>
+                            <a href="#" onclick="window.api.openExternal('https://github.com/LevrikM'); return false;" class="footer-link">
+                                <i class="ri-github-fill"></i> <span data-i18n="footer.github">GitHub</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="command-center" class="modal-overlay hidden">
+        <div class="command-center">
+            <aside class="cc-sidebar">
+                <h3 data-i18n="cc.fileExplorer">File Explorer</h3>
+                <div id="cc-tree-root" data-i18n="cc.loading">Load...</div>
+            </aside>
+
+            <main class="cc-main">
+                <div class="cc-header">
+                    <h2 id="cc-project-name" style="margin:0">Project</h2>
+                    <button class="win-btn" id="cc-close">×</button>
+                </div>
+
+                <div class="scripts-panel" style="padding: 20px;">
+                    <div style="font-size:12px; color:#888; margin-bottom:10px;" data-i18n="cc.scriptsActions">SCRIPTS & ACTIONS</div>
+                    <div id="cc-scripts-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px;"></div>
+                    
+                    <div class="script-row">
+                        <input type="text" id="new-script-name" data-i18n-placeholder="cc.scriptName" placeholder="Name" class="form-input">
+                        <input type="text" id="new-script-cmd" data-i18n-placeholder="cc.scriptCommand" placeholder="Command (npm start)" class="form-input">
+                        <button id="btn-add-script" class="action-btn" data-i18n="cc.add">Add</button>
+                    </div>
+                </div>
+
+                <div class="terminal-window" id="cc-terminal">> Ready...</div>
+                
+                <div style="padding: 10px; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="action-btn" id="cc-open-vscode" data-i18n="cc.openVscode">Open in VS Code</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="translations.js"></script>
+    <script src="renderer.js"></script>
+</body>
+</html>
