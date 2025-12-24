@@ -92,13 +92,27 @@ async function init() {
         log('init', `Detected system language: ${detectedLang}`);
         log('init', `Using language: ${currentLang} ${settings.language ? '(from settings)' : '(auto-detected)'}`);
         
+        updateUI();
+        
         if (!settings.language) {
             const langMessage = currentLang === 'uk' ? 'Українська' : currentLang === 'ru' ? 'Русский' : 'English';
+            const systemLang = navigator.language || navigator.userLanguage;
+            const langInfoEl = document.getElementById('setup-language-info');
+            if (langInfoEl) {
+                if (currentLang === detectedLang) {
+                    langInfoEl.textContent = t('setup.language.detected').replace('{lang}', langMessage).replace('{system}', systemLang);
+                } else {
+                    langInfoEl.textContent = t('setup.language.notSupported').replace('{system}', systemLang);
+                }
+            }
             console.log(`%c[Language] Detected: ${langMessage} (${currentLang})`, 'color: #00f2ff; font-weight: bold;');
             console.log(`%c[Language] You can change it in Settings → Interface Language`, 'color: #888; font-style: italic;');
+        } else {
+            const langInfoEl = document.getElementById('setup-language-info');
+            if (langInfoEl) {
+                langInfoEl.style.display = 'none';
+            }
         }
-        
-        updateUI();
         
         const root = await window.api.getRootPath();
         if (root) {
@@ -304,70 +318,163 @@ async function loadSettingsForm() {
     const autoUpdate = await window.api.getAutoUpdateSetting();
     if (ui.autoUpdateCheckbox) ui.autoUpdateCheckbox.checked = autoUpdate;
     
-    updateUpdateStatus();
+    await updateUpdateStatus();
 }
 
-function updateUpdateStatus() {
+async function updateUpdateStatus() {
     if (!ui.updateStatus) return;
-    ui.updateStatus.innerHTML = `<div class="update-message update-latest" style="opacity: 0.5;"><i class="ri-information-line"></i> ${t('update.check')}</div>`;
+    
+    try {
+        const currentVersion = await window.api.getAppVersion();
+        const latestInfo = await window.api.getLatestVersion();
+        
+        if (latestInfo && latestInfo.version) {
+            if (latestInfo.version === currentVersion) {
+                ui.updateStatus.innerHTML = `<div class="update-message update-latest"><i class="ri-checkbox-circle-line"></i> ${t('update.status.ok')} (v${currentVersion})</div>`;
+            } else {
+                ui.updateStatus.innerHTML = `<div class="update-message update-available"><i class="ri-download-cloud-2-line"></i> ${t('update.status.new')}: v${latestInfo.version} (current: v${currentVersion})</div>`;
+            }
+        } else {
+            ui.updateStatus.innerHTML = `<div class="update-message update-latest" style="opacity: 0.5;"><i class="ri-information-line"></i> ${t('update.check')}</div>`;
+        }
+    } catch (error) {
+        ui.updateStatus.innerHTML = `<div class="update-message update-latest" style="opacity: 0.5;"><i class="ri-information-line"></i> ${t('update.check')}</div>`;
+    }
 }
 
 window.api.onUpdateStatus((data) => {
-    if (!ui.updateStatus) return;
-    
-    const statusEl = ui.updateStatus;
-    statusEl.innerHTML = '';
-    
-    if (data.status === 'checking') {
-        statusEl.innerHTML = `<div class="update-message update-checking"><i class="ri-loader-4-line"></i> ${t('update.checking')}</div>`;
-    } else if (data.status === 'available') {
-        statusEl.innerHTML = `
-            <div class="update-message update-available">
-                <i class="ri-download-cloud-2-line"></i> 
-                <span>${t('update.available')}: v${data.version}</span>
-                <button class="action-btn" style="background: var(--accent); color: black; margin-left: 10px; padding: 6px 12px; font-size: 11px;" onclick="downloadUpdate()">${t('update.downloading')}</button>
-            </div>
-        `;
-    } else if (data.status === 'latest') {
-        statusEl.innerHTML = `<div class="update-message update-latest"><i class="ri-checkbox-circle-line"></i> ${t('update.latest')}</div>`;
-    } else if (data.status === 'ready') {
-        statusEl.innerHTML = `
-            <div class="update-message update-ready">
-                <i class="ri-install-line"></i> 
-                <span>${t('update.ready')}: v${data.version}</span>
-                <button class="action-btn" style="background: #4caf50; color: white; margin-left: 10px; padding: 6px 12px; font-size: 11px;" onclick="installUpdate()">${t('update.install')}</button>
-            </div>
-        `;
-    } else if (data.status === 'error') {
-        statusEl.innerHTML = `<div class="update-message update-error"><i class="ri-error-warning-line"></i> ${t('update.error')}: ${data.error}</div>`;
+    if (ui.updateStatus) {
+        const statusEl = ui.updateStatus;
+        statusEl.innerHTML = '';
+        
+        if (data.status === 'checking') {
+            statusEl.innerHTML = `<div class="update-message update-checking"><i class="ri-loader-4-line"></i> ${t('update.checking')}</div>`;
+        } else if (data.status === 'available') {
+            statusEl.innerHTML = `
+                <div class="update-message update-available">
+                    <i class="ri-download-cloud-2-line"></i> 
+                    <span>${t('update.available')}: v${data.version}</span>
+                    <button class="action-btn" style="background: var(--accent); color: black; margin-left: 10px; padding: 6px 12px; font-size: 11px;" onclick="downloadUpdate()">${t('update.downloading')}</button>
+                </div>
+            `;
+            showUpdateNotification('available', data.version);
+        } else if (data.status === 'latest') {
+            statusEl.innerHTML = `<div class="update-message update-latest"><i class="ri-checkbox-circle-line"></i> ${t('update.status.ok')}</div>`;
+        } else if (data.status === 'ready') {
+            statusEl.innerHTML = `
+                <div class="update-message update-ready">
+                    <i class="ri-install-line"></i> 
+                    <span>${t('update.ready')}: v${data.version}</span>
+                    <button class="action-btn" style="background: #4caf50; color: white; margin-left: 10px; padding: 6px 12px; font-size: 11px;" onclick="installUpdate()">${t('update.install')}</button>
+                </div>
+            `;
+            showUpdateNotification('ready', data.version);
+        } else if (data.status === 'error') {
+            const errorMsg = data.error || t('update.error');
+            statusEl.innerHTML = `<div class="update-message update-error"><i class="ri-error-warning-line"></i> ${errorMsg}</div>`;
+            if (data.canDownloadManually) {
+                showUpdateNotification('error', null, errorMsg);
+            }
+        }
     }
 });
 
 window.api.onUpdateProgress((progress) => {
-    if (!ui.updateStatus) return;
     const percent = Math.round(progress.percent);
-    ui.updateStatus.innerHTML = `
-        <div class="update-message update-downloading">
-            <i class="ri-download-cloud-2-line"></i> 
-            <span>${t('update.downloading')}: ${percent}%</span>
-            <div class="progress-bar" style="width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 5px; overflow: hidden;">
-                <div style="width: ${percent}%; height: 100%; background: var(--accent); transition: width 0.3s;"></div>
+    
+    if (ui.updateStatus) {
+        ui.updateStatus.innerHTML = `
+            <div class="update-message update-downloading">
+                <i class="ri-download-cloud-2-line"></i> 
+                <span>${t('update.downloading')}: ${percent}%</span>
+                <div class="progress-bar" style="width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 5px; overflow: hidden;">
+                    <div style="width: ${percent}%; height: 100%; background: var(--accent); transition: width 0.3s;"></div>
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    }
+    
+    const progressBar = document.getElementById('update-progress-bar');
+    const progressFill = document.getElementById('update-progress-fill');
+    if (progressBar && progressFill) {
+        progressBar.style.display = 'block';
+        progressFill.style.width = `${percent}%`;
+    }
 });
 
 window.downloadUpdate = async () => {
     log('downloadUpdate', 'Starting update download...');
-    await window.api.downloadUpdate();
+    showUpdateNotification('downloading');
+    const result = await window.api.downloadUpdate();
+    if (!result.success) {
+        showUpdateNotification('error', null, result.error || 'Download failed');
+    }
 };
 
 window.installUpdate = async () => {
-    if (confirm(t('update.install'))) {
-        log('installUpdate', 'Installing update...');
-        await window.api.installUpdate();
-    }
+    log('installUpdate', 'Installing update...');
+    await window.api.installUpdate();
 };
+
+function showUpdateNotification(type, version, errorMessage) {
+    const notification = document.getElementById('update-notification');
+    const title = document.getElementById('update-notification-title');
+    const message = document.getElementById('update-notification-message');
+    const progressBar = document.getElementById('update-progress-bar');
+    
+    if (!notification || !title || !message) return;
+    
+    if (type === 'available') {
+        title.textContent = t('update.available');
+        message.textContent = `Version ${version} is available. Downloading...`;
+        notification.classList.remove('hidden');
+        notification.classList.remove('update-error-notif', 'update-ready-notif');
+        notification.classList.add('update-available-notif');
+        window.downloadUpdate();
+    } else if (type === 'downloading') {
+        title.textContent = t('update.downloading');
+        message.textContent = 'Please wait...';
+        notification.classList.remove('hidden');
+        notification.classList.add('update-downloading-notif');
+        if (progressBar) progressBar.style.display = 'block';
+    } else if (type === 'ready') {
+        title.textContent = t('update.ready');
+        message.textContent = `Version ${version} is ready to install`;
+        notification.classList.remove('hidden');
+        notification.classList.add('update-ready-notif');
+        if (progressBar) progressBar.style.display = 'none';
+    } else if (type === 'error') {
+        title.textContent = t('update.error');
+        message.textContent = errorMessage || t('update.error');
+        notification.classList.remove('hidden');
+        notification.classList.add('update-error-notif');
+        if (progressBar) progressBar.style.display = 'none';
+    }
+}
+
+const updateInstallNow = document.getElementById('update-install-now');
+const updateInstallLater = document.getElementById('update-install-later');
+const updateClose = document.getElementById('update-close');
+
+if (updateInstallNow) {
+    updateInstallNow.onclick = async () => {
+        await window.api.installUpdate();
+    };
+}
+
+if (updateInstallLater) {
+    updateInstallLater.onclick = () => {
+        const notification = document.getElementById('update-notification');
+        if (notification) notification.classList.add('hidden');
+    };
+}
+
+if (updateClose) {
+    updateClose.onclick = () => {
+        const notification = document.getElementById('update-notification');
+        if (notification) notification.classList.add('hidden');
+    };
+}
 
 if (ui.checkUpdateBtn) {
     ui.checkUpdateBtn.onclick = async () => {
@@ -429,7 +536,7 @@ ui.btnReset.onclick = async () => {
 };
 
 function switchView(viewName) {
-    const views = ['dashboard', 'favorites', 'recent', 'terminal', 'scripts', 'settings'];
+    const views = ['dashboard', 'favorites', 'recent', 'scripts', 'settings'];
     views.forEach(v => {
         const viewEl = document.getElementById(`view-${v}`);
         if (viewEl) viewEl.classList.add('hidden');
@@ -465,8 +572,6 @@ document.querySelectorAll('.menu-item[data-tab]').forEach(tab => {
                 .sort((a, b) => b.lastOpened - a.lastOpened)
                 .slice(0, 20);
             renderGrid(recent, document.getElementById('recent-grid'));
-        } else if (tabName === 'terminal') {
-            switchView('terminal');
         } else if (tabName === 'scripts') {
             switchView('scripts');
             loadAllScripts();

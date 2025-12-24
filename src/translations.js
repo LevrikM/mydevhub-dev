@@ -10,6 +10,8 @@ const translations = {
         'setup.feature2.desc': 'Запускай скрипти та команди миттєво',
         'setup.feature3.title': 'Інтеграція Git',
         'setup.feature3.desc': 'Відстежуй статус репозиторіїв одним поглядом',
+        'setup.language.detected': 'Мова: {lang} (визначено з вашої системи: {system}). Ви можете змінити це в Налаштуваннях.',
+        'setup.language.notSupported': 'Мова: Англійська (мова вашої системи {system} не підтримується). Ви можете змінити це в Налаштуваннях.',
         
         'sidebar.main': 'Головне',
         'sidebar.tools': 'Інструменти',
@@ -84,7 +86,9 @@ const translations = {
         'update.error': 'Error checking for updates',
         'update.version': 'Version',
         'update.current': 'Current version',
-        'update.auto': 'Auto update'
+        'update.auto': 'Auto update',
+        'update.status.ok': 'All good, you have the latest version',
+        'update.status.new': 'New version available'
     },
     
     en: {
@@ -98,6 +102,8 @@ const translations = {
         'setup.feature2.desc': 'Run scripts and commands instantly',
         'setup.feature3.title': 'Git Integration',
         'setup.feature3.desc': 'Track repository status at a glance',
+        'setup.language.detected': 'Language: {lang} (detected from your system: {system}). You can change it in Settings.',
+        'setup.language.notSupported': 'Language: English (your system language {system} is not supported). You can change it in Settings.',
         
         'sidebar.main': 'Main',
         'sidebar.tools': 'Tools',
@@ -172,7 +178,9 @@ const translations = {
         'update.error': 'Помилка перевірки оновлень',
         'update.version': 'Версія',
         'update.current': 'Поточна версія',
-        'update.auto': 'Автоматичне оновлення'
+        'update.auto': 'Автоматичне оновлення',
+        'update.status.ok': 'Все добре, у вас остання версія',
+        'update.status.new': 'Доступна нова версія'
     },
     
     ru: {
@@ -186,6 +194,8 @@ const translations = {
         'setup.feature2.desc': 'Запускай скрипты и команды мгновенно',
         'setup.feature3.title': 'Интеграция Git',
         'setup.feature3.desc': 'Отслеживай статус репозиториев одним взглядом',
+        'setup.language.detected': 'Язык: {lang} (определен из вашей системы: {system}). Вы можете изменить это в Настройках.',
+        'setup.language.notSupported': 'Язык: Английский (язык вашей системы {system} не поддерживается). Вы можете изменить это в Настройках.',
         
         'sidebar.main': 'Главное',
         'sidebar.tools': 'Инструменты',
@@ -260,7 +270,9 @@ const translations = {
         'update.error': 'Ошибка проверки обновлений',
         'update.version': 'Версия',
         'update.current': 'Текущая версия',
-        'update.auto': 'Автоматическое обновление'
+        'update.auto': 'Автоматическое обновление',
+        'update.status.ok': 'Все хорошо, у вас последняя версия',
+        'update.status.new': 'Доступна новая версия'
     }
 };
 

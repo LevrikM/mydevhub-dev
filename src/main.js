@@ -27,6 +27,11 @@ autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
 autoUpdater.checkForUpdatesAndNotify = false;
 
+if (process.platform === 'win32') {
+    autoUpdater.allowPrerelease = false;
+    autoUpdater.allowDowngrade = false;
+}
+
 function createWindow() {
     log('createWindow', 'Creating main window...');
     mainWindow = new BrowserWindow({
@@ -351,9 +356,18 @@ autoUpdater.on('update-not-available', () => {
 
 autoUpdater.on('error', (err) => {
     log('autoUpdater', `Update error: ${err.message}`);
+    
+    let userFriendlyError = err.message;
+    if (err.message && err.message.includes('not signed') || err.message.includes('digitally signed')) {
+        userFriendlyError = 'Update file is not signed. You can download it manually from the website.';
+    } else if (err.message && err.message.includes('StatusMessage')) {
+        userFriendlyError = 'Unable to verify update signature. Please download manually from the website.';
+    }
+    
     if (mainWindow) mainWindow.webContents.send('update-status', { 
         status: 'error', 
-        error: err.message 
+        error: userFriendlyError,
+        canDownloadManually: true
     });
 });
 
@@ -373,15 +387,21 @@ autoUpdater.on('update-downloaded', (info) => {
 app.whenReady().then(() => {
     log('app', 'Application ready');
     createWindow();
-    const autoUpdateEnabled = store.get('autoUpdate', true);
-    if (autoUpdateEnabled) {
-        log('app', 'Auto-update enabled, will check in 5 seconds');
-        setTimeout(() => {
-            autoUpdater.checkForUpdates();
-        }, 5000);
-    } else {
-        log('app', 'Auto-update disabled');
-    }
+    
+    mainWindow.webContents.once('did-finish-load', () => {
+        log('app', 'Window loaded, checking for updates...');
+        const autoUpdateEnabled = store.get('autoUpdate', true);
+        if (autoUpdateEnabled) {
+            setTimeout(() => {
+                log('app', 'Checking for updates on startup...');
+                autoUpdater.checkForUpdates().catch(err => {
+                    log('app', `Update check failed on startup: ${err.message}`);
+                });
+            }, 3000);
+        } else {
+            log('app', 'Auto-update disabled');
+        }
+    });
 }).catch(err => {
     log('app', `Error during app initialization: ${err.message}`);
     console.error('[app] Full error:', err);

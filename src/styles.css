@@ -407,7 +407,20 @@ input, textarea, select {
 .setup-subtitle {
     color: var(--text-muted);
     font-size: 16px;
-    margin: 0;
+    margin: 0 0 15px 0;
+}
+
+.setup-language-info {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin: 10px 0 0 0;
+    opacity: 0.7;
+    font-style: italic;
+    padding: 8px 12px;
+    background: rgba(0, 242, 255, 0.05);
+    border: 1px solid rgba(0, 242, 255, 0.1);
+    border-radius: 8px;
+    display: inline-block;
 }
 
 .setup-content {
@@ -660,6 +673,151 @@ input, textarea, select {
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+}
+
+.update-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 420px;
+    background: rgba(15, 15, 20, 0.98);
+    backdrop-filter: blur(20px);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    z-index: 10000;
+    animation: slideInRight 0.3s ease-out;
+    overflow: hidden;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.update-notification-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+}
+
+.update-notification-icon {
+    font-size: 32px;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.update-notification-text {
+    flex: 1;
+}
+
+.update-notification-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: white;
+    margin-bottom: 4px;
+}
+
+.update-notification-message {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.update-notification-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.update-btn-primary {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.update-btn-primary:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px var(--accent-glow);
+}
+
+.update-btn-secondary {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.update-btn-secondary:hover {
+    color: white;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.update-btn-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.update-btn-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.update-progress-bar {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    width: 100%;
+    overflow: hidden;
+}
+
+.update-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.update-available-notif {
+    border-color: rgba(255, 165, 0, 0.5);
+}
+
+.update-downloading-notif {
+    border-color: var(--accent);
+}
+
+.update-ready-notif {
+    border-color: #4caf50;
+}
+
+.update-error-notif {
+    border-color: #ff4444;
 }
 
 .checkbox-label {

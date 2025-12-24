@@ -15,6 +15,7 @@
                 </div>
                 <h1 data-i18n="setup.welcome">Welcome to myDevHub</h1>
                 <p class="setup-subtitle" data-i18n="setup.subtitle">Your command center. Choose your main folder to get started.</p>
+                <p class="setup-language-info" id="setup-language-info"></p>
             </div>
             
             <div class="setup-content">
@@ -85,10 +86,6 @@
                 
                 <div class="nav-section">
                     <div class="nav-section-title" data-i18n="sidebar.tools">Tools</div>
-                    <div class="menu-item" data-tab="terminal">
-                        <i class="ri-terminal-box-line"></i>
-                        <span data-i18n="sidebar.terminal">Terminal</span>
-                    </div>
                     <div class="menu-item" data-tab="scripts">
                         <i class="ri-play-list-line"></i>
                         <span data-i18n="sidebar.scripts">Scripts</span>
@@ -146,19 +143,6 @@
                     <span data-i18n="recent.title">Recently Opened</span>
                 </div>
                 <div id="recent-grid" class="projects-grid"></div>
-            </div>
-
-            <div id="view-terminal" class="view-section hidden">
-                <div class="section-title">
-                    <span data-i18n="terminal.title">Terminal</span>
-                </div>
-                <div class="terminal-container">
-                    <div id="global-terminal" class="terminal-window">> Ready...</div>
-                    <div class="terminal-input-row">
-                        <input type="text" id="terminal-input" class="form-input" placeholder="Enter command..." style="flex: 1;">
-                        <button id="terminal-send" class="action-btn">Send</button>
-                    </div>
-                </div>
             </div>
 
             <div id="view-scripts" class="view-section hidden">
@@ -274,6 +258,26 @@
                     <button class="action-btn" id="cc-open-vscode" data-i18n="cc.openVscode">Open in VS Code</button>
                 </div>
             </main>
+        </div>
+    </div>
+
+    <div id="update-notification" class="update-notification hidden">
+        <div class="update-notification-content">
+            <div class="update-notification-icon">
+                <i class="ri-download-cloud-2-line"></i>
+            </div>
+            <div class="update-notification-text">
+                <div class="update-notification-title" id="update-notification-title">Update Available</div>
+                <div class="update-notification-message" id="update-notification-message">Version 1.0.1 is ready to install</div>
+            </div>
+            <div class="update-notification-actions">
+                <button id="update-install-now" class="update-btn-primary">Install Now</button>
+                <button id="update-install-later" class="update-btn-secondary">Later</button>
+                <button id="update-close" class="update-btn-close">×</button>
+            </div>
+        </div>
+        <div class="update-progress-bar" id="update-progress-bar" style="display: none;">
+            <div class="update-progress-fill" id="update-progress-fill"></div>
         </div>
     </div>
 

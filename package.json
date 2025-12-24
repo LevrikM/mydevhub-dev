@@ -1,6 +1,6 @@
 {
   "name": "mydevhub",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Your command center for managing development projects. Organize, track, and launch your projects with ease.",
   "author": "LevrikM",
   "main": "src/main.js",
@@ -20,7 +20,8 @@
       "target": "nsis",
       "publisherName": "LevrikM",
       "requestedExecutionLevel": "asInvoker",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "verifyUpdateCodeSignature": false
     },
     "nsis": {
       "oneClick": false,
