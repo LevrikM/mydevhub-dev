@@ -42,7 +42,9 @@ function createWindow() {
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
-            nodeIntegration: false
+            nodeIntegration: false,
+            devTools: false,
+            webSecurity: true
         },
         show: false
     });
@@ -57,6 +59,10 @@ function createWindow() {
         mainWindow = null;
     });
     
+    mainWindow.webContents.on('devtools-opened', () => {
+        mainWindow.webContents.closeDevTools();
+    });
+    
     const indexPath = path.join(__dirname, 'index.html');
     log('createWindow', `Loading file: ${indexPath}`);
     
@@ -64,9 +70,6 @@ function createWindow() {
         log('createWindow', 'File loaded successfully');
     }).catch(err => {
         log('createWindow', `Error loading file: ${err.message}`);
-        console.error('[createWindow] Full error:', err);
-        console.error('[createWindow] __dirname:', __dirname);
-        console.error('[createWindow] indexPath:', indexPath);
     });
     
     log('createWindow', 'Main window created successfully');
@@ -103,12 +106,25 @@ ipcMain.handle('set-root-path', async () => {
 });
 
 ipcMain.handle('get-settings', () => {
-    const settings = store.get('settings', { showHidden: false, scanDepth: 3, language: 'uk' });
+    const defaultSettings = { 
+        showHidden: false, 
+        scanDepth: 3, 
+        language: 'uk',
+        defaultEditor: 'code',
+        editorPaths: {}
+    };
+    const settings = store.get('settings', defaultSettings);
+    const merged = { ...defaultSettings, ...settings };
     log('get-settings', 'Retrieved settings');
-    return settings;
+    return merged;
 });
 ipcMain.handle('save-settings', (e, s) => {
     store.set('settings', s);
+    const root = store.get('rootPath');
+    if (root) {
+        const cacheKey = `scanCache.${Buffer.from(root).toString('base64')}`;
+        store.delete(cacheKey);
+    }
     log('save-settings', 'Settings saved');
 });
 ipcMain.handle('reset-settings', () => {
@@ -134,7 +150,7 @@ ipcMain.handle('log-usage', (event, projectPath) => {
 
 const PROJECT_MARKERS = ['.git', 'package.json', 'requirements.txt', 'Cargo.toml', 'composer.json', 'go.mod'];
 
-async function recursiveScan(dir, depth, maxDepth, showHidden) {
+async function recursiveScan(dir, depth, maxDepth, showHidden, rootPath) {
     if (depth > maxDepth) return [];
     try {
         const dirents = await fs.readdir(dir, { withFileTypes: true });
@@ -178,6 +194,10 @@ async function recursiveScan(dir, depth, maxDepth, showHidden) {
                 }
             } catch (e) { }
 
+            const savedTags = store.get(`tags.${pathHash}`, []);
+            const savedNote = store.get(`note.${pathHash}`, '');
+            const savedOrder = store.get(`projectOrder.${Buffer.from(rootPath).toString('base64')}`, []);
+            
             return [{
                 name: path.basename(dir),
                 path: dir,
@@ -185,29 +205,61 @@ async function recursiveScan(dir, depth, maxDepth, showHidden) {
                 lastOpened: lastUsage,
                 git: gitInfo,
                 scripts: [...savedScripts, ...autoScripts],
-                parent: path.basename(path.dirname(dir))
+                parent: path.basename(path.dirname(dir)),
+                tags: savedTags,
+                note: savedNote,
+                order: savedOrder.indexOf(dir) >= 0 ? savedOrder.indexOf(dir) : 9999
             }];
         }
         
         const subFolders = dirents.filter(d => d.isDirectory() && (showHidden || !d.name.startsWith('.')) && d.name !== 'node_modules');
         let results = [];
         for (const folder of subFolders) {
-            results = results.concat(await recursiveScan(path.join(dir, folder.name), depth + 1, maxDepth, showHidden));
+            results = results.concat(await recursiveScan(path.join(dir, folder.name), depth + 1, maxDepth, showHidden, rootPath));
         }
         return results;
     } catch (e) { return []; }
 }
 
-ipcMain.handle('scan-smart', async () => {
+ipcMain.handle('scan-smart', async (event, forceRefresh = false) => {
     const root = store.get('rootPath');
     const settings = store.get('settings', { showHidden: false, scanDepth: 3 });
     if (!root) {
         log('scan-smart', 'No root path set, returning empty array');
         return [];
     }
+    
+    const cacheKey = `scanCache.${Buffer.from(root).toString('base64')}`;
+    const cacheKeyTime = `scanCacheTime.${Buffer.from(root).toString('base64')}`;
+    const cacheMaxAge = 60000;
+    
+    if (!forceRefresh) {
+        const cachedData = store.get(cacheKey, null);
+        const cacheTime = store.get(cacheKeyTime, 0);
+        const now = Date.now();
+        
+        if (cachedData && (now - cacheTime < cacheMaxAge)) {
+            log('scan-smart', `Returning cached results (${cachedData.length} projects, age: ${Math.round((now - cacheTime) / 1000)}s)`);
+            return cachedData;
+        }
+    }
+    
     log('scan-smart', `Starting scan from: ${root} (depth: ${settings.scanDepth})`);
-    const results = await recursiveScan(root, 0, settings.scanDepth, settings.showHidden);
-    log('scan-smart', `Scan completed, found ${results.length} projects`);
+    const results = await recursiveScan(root, 0, settings.scanDepth, settings.showHidden, root);
+    const savedOrder = store.get(`projectOrder.${Buffer.from(root).toString('base64')}`, []);
+    results.sort((a, b) => {
+        const orderA = savedOrder.indexOf(a.path) >= 0 ? savedOrder.indexOf(a.path) : 9999;
+        const orderB = savedOrder.indexOf(b.path) >= 0 ? savedOrder.indexOf(b.path) : 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        const timeA = Math.max(a.lastOpened || 0, new Date(a.lastModified).getTime());
+        const timeB = Math.max(b.lastOpened || 0, new Date(b.lastModified).getTime());
+        return timeB - timeA;
+    });
+    
+    store.set(cacheKey, results);
+    store.set(cacheKeyTime, Date.now());
+    
+    log('scan-smart', `Scan completed, found ${results.length} projects (cached)`);
     return results;
 });
 
@@ -250,6 +302,57 @@ ipcMain.handle('get-scripts', (event, projectPath) => {
     return store.get(key, []);
 });
 
+// Tags API
+ipcMain.handle('get-tags', (event, projectPath) => {
+    const key = `tags.${Buffer.from(projectPath).toString('base64')}`;
+    return store.get(key, []);
+});
+
+ipcMain.handle('save-tags', (event, { projectPath, tags }) => {
+    const key = `tags.${Buffer.from(projectPath).toString('base64')}`;
+    store.set(key, tags);
+    return tags;
+});
+
+// Notes API
+ipcMain.handle('get-note', (event, projectPath) => {
+    const key = `note.${Buffer.from(projectPath).toString('base64')}`;
+    return store.get(key, '');
+});
+
+ipcMain.handle('save-note', (event, { projectPath, note }) => {
+    const key = `note.${Buffer.from(projectPath).toString('base64')}`;
+    store.set(key, note);
+    return note;
+});
+
+// Project order API
+ipcMain.handle('save-project-order', (event, { rootPath, order }) => {
+    const key = `projectOrder.${Buffer.from(rootPath).toString('base64')}`;
+    store.set(key, order);
+    return true;
+});
+
+// Git log API
+ipcMain.handle('get-git-log', async (event, projectPath, count = 10) => {
+    try {
+        if (!fsSync.existsSync(path.join(projectPath, '.git'))) {
+            return [];
+        }
+        const git = simpleGit(projectPath);
+        const log = await git.log({ maxCount: count });
+        return log.all.map(commit => ({
+            hash: commit.hash.substring(0, 7),
+            message: commit.message,
+            author: commit.author_name,
+            date: commit.date
+        }));
+    } catch (e) {
+        log('get-git-log', `Error: ${e.message}`);
+        return [];
+    }
+});
+
 ipcMain.on('run-command', (event, { command, cwd }) => {
     log('run-command', `Executing command: ${command} in ${cwd}`);
     const child = spawn(command, [], { shell: true, cwd });
@@ -267,6 +370,42 @@ ipcMain.handle('open-vscode', (e, p) => {
     spawn('code', [p], { shell: true });
     const key = `usage.${Buffer.from(p).toString('base64')}`;
     store.set(key, Date.now());
+});
+
+ipcMain.handle('open-editor', (e, { projectPath, editor }) => {
+    log('open-editor', `Opening ${editor} for: ${projectPath}`);
+    const settings = store.get('settings', {});
+    let editorPath = editor;
+    
+    if (settings.editorPaths && settings.editorPaths[editor]) {
+        editorPath = settings.editorPaths[editor];
+    } else {
+        const defaultPaths = {
+            'code': 'code',
+            'webstorm': 'webstorm',
+            'sublime': 'subl',
+            'atom': 'atom',
+            'notepad++': 'notepad++'
+        };
+        editorPath = defaultPaths[editor] || editor;
+    }
+    
+    spawn(editorPath, [projectPath], { shell: true });
+    const key = `usage.${Buffer.from(projectPath).toString('base64')}`;
+    store.set(key, Date.now());
+});
+
+ipcMain.handle('get-editor-paths', () => {
+    const settings = store.get('settings', {});
+    return settings.editorPaths || {};
+});
+
+ipcMain.handle('set-editor-path', (e, { editor, path }) => {
+    const settings = store.get('settings', {});
+    if (!settings.editorPaths) settings.editorPaths = {};
+    settings.editorPaths[editor] = path;
+    store.set('settings', settings);
+    return true;
 });
 
 ipcMain.handle('open-external', (e, url) => {
@@ -404,7 +543,6 @@ app.whenReady().then(() => {
     });
 }).catch(err => {
     log('app', `Error during app initialization: ${err.message}`);
-    console.error('[app] Full error:', err);
 });
 
 app.on('window-all-closed', () => {

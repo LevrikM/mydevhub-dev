@@ -4,7 +4,6 @@ let activeProjectPath = '';
 let currentLang = 'en';
 
 function log(functionName, message) {
-    console.log(`[${functionName}] ${message}`);
 }
 
 function detectSystemLanguage() {
@@ -54,8 +53,25 @@ const ui = {
     headerTitle: document.getElementById('cc-project-name'),
     closeModal: document.getElementById('cc-close'),
     addScript: document.getElementById('btn-add-script'),
-    openVsCode: document.getElementById('cc-open-vscode')
+    openVsCode: document.getElementById('cc-open-vscode'),
+    
+    projectTags: document.getElementById('cc-project-tags'),
+    projectNote: document.getElementById('cc-project-note'),
+    tagsDisplay: document.getElementById('cc-tags-display'),
+    saveProjectInfo: document.getElementById('btn-save-project-info'),
+    viewGitLog: document.getElementById('cc-view-git-log'),
+    gitLogModal: document.getElementById('git-log-modal'),
+    gitLogContent: document.getElementById('git-log-content'),
+    gitLogClose: document.getElementById('git-log-close'),
+    contextMenu: document.getElementById('project-context-menu'),
+    
+    settingDefaultEditor: document.getElementById('setting-default-editor'),
+    editorPathsList: document.getElementById('editor-paths-list'),
+    btnRefreshEditors: document.getElementById('btn-refresh-editors')
 };
+
+let currentViewMode = localStorage.getItem('viewMode') || 'normal'; // compact, normal, extended
+let contextMenuProject = null;
 
 function t(key) {
     return translations[currentLang][key] || key;
@@ -77,7 +93,16 @@ function updateUI() {
     
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
-        el.placeholder = t(key);
+        if (key) {
+            el.placeholder = t(key);
+        }
+    });
+    
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (key) {
+            el.title = t(key);
+        }
     });
 }
 
@@ -100,19 +125,35 @@ async function init() {
             const langInfoEl = document.getElementById('setup-language-info');
             if (langInfoEl) {
                 if (currentLang === detectedLang) {
-                    langInfoEl.textContent = t('setup.language.detected').replace('{lang}', langMessage).replace('{system}', systemLang);
+                    langInfoEl.innerHTML = `<div style="color: var(--accent); font-size: 13px; margin-top: 10px; padding: 10px; background: rgba(0, 242, 255, 0.1); border-radius: 8px; border: 1px solid rgba(0, 242, 255, 0.3);">${t('setup.language.detected').replace('{lang}', langMessage).replace('{system}', systemLang)}<br><span style="font-size: 11px; color: #888; margin-top: 5px; display: block;">${t('setup.language.changeHint')}</span></div>`;
                 } else {
-                    langInfoEl.textContent = t('setup.language.notSupported').replace('{system}', systemLang);
+                    langInfoEl.innerHTML = `<div style="color: var(--accent); font-size: 13px; margin-top: 10px; padding: 10px; background: rgba(0, 242, 255, 0.1); border-radius: 8px; border: 1px solid rgba(0, 242, 255, 0.3);">${t('setup.language.notSupported').replace('{system}', systemLang)}<br><span style="font-size: 11px; color: #888; margin-top: 5px; display: block;">${t('setup.language.changeHint')}</span></div>`;
                 }
+                langInfoEl.style.display = 'block';
             }
-            console.log(`%c[Language] Detected: ${langMessage} (${currentLang})`, 'color: #00f2ff; font-weight: bold;');
-            console.log(`%c[Language] You can change it in Settings → Interface Language`, 'color: #888; font-style: italic;');
         } else {
             const langInfoEl = document.getElementById('setup-language-info');
             if (langInfoEl) {
                 langInfoEl.style.display = 'none';
             }
         }
+        
+        const updateVersion = async () => {
+            const logoVersion = document.getElementById('logo-version');
+            if (!logoVersion) return;
+            
+            try {
+                const version = await window.api.getAppVersion();
+                if (version) {
+                    logoVersion.textContent = `v${version}`;
+                }
+            } catch (e) {
+            }
+        };
+        
+        updateVersion();
+        window.addEventListener('load', updateVersion);
+        setTimeout(updateVersion, 500);
         
         const root = await window.api.getRootPath();
         if (root) {
@@ -124,7 +165,6 @@ async function init() {
         }
     } catch (error) {
         log('init', `Error during initialization: ${error.message}`);
-        console.error('[init] Full error:', error);
         ui.setup.classList.remove('hidden');
     }
 }
@@ -143,12 +183,12 @@ ui.setupBtn.onclick = async () => {
     }
 };
 
-async function loadData() {
-    log('loadData', 'Loading projects data...');
+async function loadData(forceRefresh = false) {
+    log('loadData', `Loading projects data... (force: ${forceRefresh})`);
     ui.gridAll.innerHTML = `<div style="color:#666; padding:20px;">${t('dashboard.scanning')}</div>`;
     
     const [projects, favs] = await Promise.all([
-        window.api.scanSmart(),
+        window.api.scanSmart(forceRefresh),
         window.api.getFavorites()
     ]);
 
@@ -266,25 +306,97 @@ function renderGrid(list, container) {
             </button>
         `).join('');
 
+        const tagsHtml = (p.tags || []).slice(0, 3).map(tag => `
+            <span class="tag" title="${tag}">${tag}</span>
+        `).join('');
+
+        const cardModeClass = currentViewMode === 'compact' ? 'compact' : currentViewMode === 'extended' ? 'extended' : '';
+        card.className = `card ${cardModeClass}`;
+
+        const noteMaxLength = currentViewMode === 'compact' ? 40 : currentViewMode === 'extended' ? 100 : 60;
+        const noteHtml = p.note ? `<div style="font-size: 11px; color: #888; margin-top: 6px; margin-bottom: 6px; font-style: italic; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; max-height: 32px;">${p.note}</div>` : '';
+
         card.innerHTML = `
             <div class="card-top">
-                <h3 class="card-title">${p.name}</h3>
+                <h3 class="card-title" title="${p.name}">${p.name}</h3>
                 <i class="${isFav ? 'ri-star-fill' : 'ri-star-line'} fav-btn" 
-                   style="cursor:pointer; font-size:18px; color:${isFav ? 'gold' : '#444'}"></i>
+                   style="cursor:pointer; font-size:18px; color:${isFav ? 'gold' : '#444'}; flex-shrink: 0;"></i>
             </div>
-            <div class="card-sub">${p.path}</div>
-            
-            <div class="badges">
+            <div class="card-sub" title="${p.path}">${p.path}</div>
+            ${noteHtml}
+            <div class="badges" style="flex: 0 0 auto;">
                 <span class="badge">${p.parent || t('dashboard.root')}</span>
                 ${gitHtml}
+                ${tagsHtml}
                 <span class="badge" style="opacity:0.5; margin-left:auto;">${dateStr}</span>
             </div>
-
-            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:5px;">${quickScripts}</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:auto; padding-top:8px; flex: 0 0 auto;">${quickScripts}</div>
         `;
 
         card.onclick = (e) => {
-            if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('fav-btn')) openCommandCenter(p);
+            if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('fav-btn') && !e.target.closest('.tag')) {
+                openCommandCenter(p);
+            }
+        };
+
+        card.oncontextmenu = (e) => {
+            e.preventDefault();
+            contextMenuProject = p;
+            showContextMenu(e.pageX, e.pageY);
+        };
+
+        // Drag and Drop
+        card.draggable = true;
+        card.dataset.projectPath = p.path;
+        let dragOverTimeout = null;
+        
+        card.ondragstart = (e) => {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', p.path);
+            card.classList.add('dragging');
+        };
+        
+        card.ondragend = (e) => {
+            card.classList.remove('dragging');
+            // Очищаємо всі drag-over класи
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('drag-over'));
+            if (dragOverTimeout) clearTimeout(dragOverTimeout);
+        };
+        
+        card.ondragenter = (e) => {
+            e.preventDefault();
+            if (!card.classList.contains('dragging')) {
+                card.classList.add('drag-over');
+            }
+        };
+        
+        card.ondragover = (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (!card.classList.contains('dragging') && !card.classList.contains('drag-over')) {
+                card.classList.add('drag-over');
+            }
+        };
+        
+        card.ondragleave = (e) => {
+            // Перевіряємо чи курсор дійсно вийшов за межі карточки
+            if (dragOverTimeout) clearTimeout(dragOverTimeout);
+            dragOverTimeout = setTimeout(() => {
+                card.classList.remove('drag-over');
+            }, 50);
+        };
+        
+        card.ondrop = async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            card.classList.remove('drag-over');
+            if (dragOverTimeout) clearTimeout(dragOverTimeout);
+            
+            const draggedPath = e.dataTransfer.getData('text/plain');
+            if (draggedPath && draggedPath !== p.path) {
+                await reorderProjects(draggedPath, p.path);
+            }
+            return false;
         };
 
         card.querySelector('.fav-btn').onclick = async (e) => {
@@ -311,6 +423,12 @@ async function loadSettingsForm() {
     ui.settingHidden.checked = s.showHidden;
     ui.settingLanguage.value = s.language || 'uk';
     
+    if (ui.settingDefaultEditor) {
+        ui.settingDefaultEditor.value = s.defaultEditor || 'code';
+    }
+    
+    await loadEditorPaths();
+    
     const version = await window.api.getAppVersion();
     if (ui.currentVersion) ui.currentVersion.textContent = version;
     log('loadSettingsForm', `App version: ${version}`);
@@ -319,6 +437,59 @@ async function loadSettingsForm() {
     if (ui.autoUpdateCheckbox) ui.autoUpdateCheckbox.checked = autoUpdate;
     
     await updateUpdateStatus();
+}
+
+async function loadEditorPaths() {
+    if (!ui.editorPathsList) return;
+    
+    const editorPaths = await window.api.getEditorPaths();
+    const editors = [
+        { key: 'code', name: 'Visual Studio Code' },
+        { key: 'webstorm', name: 'WebStorm' },
+        { key: 'sublime', name: 'Sublime Text' },
+        { key: 'atom', name: 'Atom' },
+        { key: 'notepad++', name: 'Notepad++' }
+    ];
+    
+    ui.editorPathsList.innerHTML = '';
+    editors.forEach(editor => {
+        const div = document.createElement('div');
+        div.style.display = 'flex';
+        div.style.gap = '10px';
+        div.style.alignItems = 'center';
+        div.innerHTML = `
+            <label style="flex: 1; font-size: 12px; color: #ccc;">${editor.name}:</label>
+            <input type="text" class="form-input editor-path-input" 
+                   data-editor="${editor.key}" 
+                   value="${editorPaths[editor.key] || ''}" 
+                   placeholder="${editor.key}" 
+                   style="flex: 2; font-size: 12px;">
+        `;
+        ui.editorPathsList.appendChild(div);
+    });
+}
+
+if (ui.btnRefreshEditors) {
+    ui.btnRefreshEditors.onclick = async () => {
+        ui.btnRefreshEditors.disabled = true;
+        ui.btnRefreshEditors.textContent = t('settings.refreshing') || 'Refreshing...';
+        
+        const inputs = document.querySelectorAll('.editor-path-input');
+        const editorPaths = {};
+        for (const input of inputs) {
+            const editor = input.dataset.editor;
+            const path = input.value.trim();
+            if (path) {
+                editorPaths[editor] = path;
+                await window.api.setEditorPath({ editor, path });
+            }
+        }
+        
+        setTimeout(() => {
+            ui.btnRefreshEditors.disabled = false;
+            ui.btnRefreshEditors.textContent = t('settings.refreshEditors') || 'Refresh';
+        }, 1000);
+    };
 }
 
 async function updateUpdateStatus() {
@@ -509,23 +680,68 @@ ui.btnChangePath.onclick = async () => {
 
 ui.settingDepth.addEventListener('input', (e) => ui.settingDepthVal.innerText = e.target.value);
 
-ui.settingLanguage.addEventListener('change', (e) => {
+ui.settingLanguage.addEventListener('change', async (e) => {
     currentLang = e.target.value;
+    const settings = await window.api.getSettings();
+    await window.api.saveSettings({
+        ...settings,
+        language: currentLang
+    });
     updateUI();
+    
+    const langInfoEl = document.getElementById('setup-language-info');
+    if (langInfoEl && langInfoEl.style.display !== 'none') {
+        const langMessage = currentLang === 'uk' ? 'Українська' : currentLang === 'ru' ? 'Русский' : 'English';
+        const systemLang = navigator.language || navigator.userLanguage;
+        langInfoEl.innerHTML = `<div style="color: var(--accent); font-size: 13px; margin-top: 10px; padding: 10px; background: rgba(0, 242, 255, 0.1); border-radius: 8px; border: 1px solid rgba(0, 242, 255, 0.3);">${t('setup.language.detected').replace('{lang}', langMessage).replace('{system}', systemLang)}<br><span style="font-size: 11px; color: #888; margin-top: 5px; display: block;">${t('setup.language.changeHint')}</span></div>`;
+    }
+    
+    const activeTab = document.querySelector('.menu-item.active')?.dataset.tab || 'dashboard';
+    if (activeTab === 'dashboard') {
+        renderGrid(currentProjects, ui.gridAll);
+    } else if (activeTab === 'favorites') {
+        renderGrid(currentProjects.filter(p => favorites.includes(p.path)), document.getElementById('favorites-grid'));
+    } else if (activeTab === 'recent') {
+        const recent = currentProjects
+            .filter(p => p.lastOpened)
+            .sort((a, b) => b.lastOpened - a.lastOpened)
+            .slice(0, 20);
+        renderGrid(recent, document.getElementById('recent-grid'));
+    }
+    
+    updateStats();
 });
 
 ui.btnSaveSettings.onclick = async () => {
     log('saveSettings', 'Saving settings...');
+    
+    const inputs = document.querySelectorAll('.editor-path-input');
+    const editorPaths = {};
+    inputs.forEach(input => {
+        const editor = input.dataset.editor;
+        const path = input.value.trim();
+        if (path) {
+            editorPaths[editor] = path;
+        }
+    });
+    
     await window.api.saveSettings({
         scanDepth: parseInt(ui.settingDepth.value),
         showHidden: ui.settingHidden.checked,
-        language: ui.settingLanguage.value
+        language: ui.settingLanguage.value,
+        defaultEditor: ui.settingDefaultEditor ? ui.settingDefaultEditor.value : 'code',
+        editorPaths: editorPaths
     });
+    
+    for (const [editor, path] of Object.entries(editorPaths)) {
+        await window.api.setEditorPath({ editor, path });
+    }
+    
     log('saveSettings', 'Settings saved successfully');
     alert(t('settings.saved'));
     currentLang = ui.settingLanguage.value;
     updateUI();
-    loadData();
+    loadData(true);
 };
 
 ui.btnReset.onclick = async () => {
@@ -621,9 +837,186 @@ async function openCommandCenter(project) {
     window.api.logUsage(project.path);
     project.lastOpened = Date.now();
 
+    const tags = await window.api.getTags(project.path);
+    const note = await window.api.getNote(project.path);
+    ui.projectTags.value = tags.join(', ');
+    ui.projectNote.value = note;
+    updateTagsDisplay(tags);
+
     loadTree(project.path, ui.treeRoot);
     loadScriptsInModal(project);
 }
+
+function updateTagsDisplay(tags) {
+    ui.tagsDisplay.innerHTML = '';
+    tags.forEach(tag => {
+        const tagEl = document.createElement('span');
+        tagEl.className = 'tag';
+        tagEl.innerHTML = `${tag} <span class="tag-remove" onclick="removeTag('${tag}')">×</span>`;
+        ui.tagsDisplay.appendChild(tagEl);
+    });
+}
+
+window.removeTag = (tag) => {
+    const tags = ui.projectTags.value.split(',').map(t => t.trim()).filter(t => t && t !== tag);
+    ui.projectTags.value = tags.join(', ');
+    updateTagsDisplay(tags);
+};
+
+ui.projectTags.addEventListener('input', () => {
+    const tags = ui.projectTags.value.split(',').map(t => t.trim()).filter(t => t);
+    updateTagsDisplay(tags);
+});
+
+ui.saveProjectInfo.onclick = async () => {
+    const tags = ui.projectTags.value.split(',').map(t => t.trim()).filter(t => t);
+    const note = ui.projectNote.value.trim();
+    await window.api.saveTags({ projectPath: activeProjectPath, tags });
+    await window.api.saveNote({ projectPath: activeProjectPath, note });
+    
+    const project = currentProjects.find(p => p.path === activeProjectPath);
+    if (project) {
+        project.tags = tags;
+        project.note = note;
+    }
+    
+    const activeTab = document.querySelector('.menu-item.active')?.dataset.tab || 'dashboard';
+    let container = ui.gridAll;
+    let list = currentProjects;
+    
+    if (activeTab === 'favorites') {
+        container = document.getElementById('favorites-grid');
+        list = currentProjects.filter(p => favorites.includes(p.path));
+    } else if (activeTab === 'recent') {
+        container = document.getElementById('recent-grid');
+        list = currentProjects
+            .filter(p => p.lastOpened)
+            .sort((a, b) => b.lastOpened - a.lastOpened)
+            .slice(0, 20);
+    }
+    
+    renderGrid(list, container);
+    
+    const modal = document.getElementById('command-center');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+};
+
+async function reorderProjects(draggedPath, targetPath) {
+    const root = await window.api.getRootPath();
+    if (!root) return;
+    
+    const draggedIndex = currentProjects.findIndex(p => p.path === draggedPath);
+    const targetIndex = currentProjects.findIndex(p => p.path === targetPath);
+    
+    if (draggedIndex >= 0 && targetIndex >= 0 && draggedIndex !== targetIndex) {
+        const draggedProject = currentProjects[draggedIndex];
+        currentProjects.splice(draggedIndex, 1);
+        currentProjects.splice(targetIndex, 0, draggedProject);
+        
+        const newOrder = currentProjects.map(p => p.path);
+        await window.api.saveProjectOrder({ rootPath: root, order: newOrder });
+        
+        const activeTab = document.querySelector('.menu-item.active')?.dataset.tab || 'dashboard';
+        let container = ui.gridAll;
+        let list = currentProjects;
+        
+        if (activeTab === 'favorites') {
+            container = document.getElementById('favorites-grid');
+            list = currentProjects.filter(p => favorites.includes(p.path));
+        } else if (activeTab === 'recent') {
+            container = document.getElementById('recent-grid');
+            list = currentProjects
+                .filter(p => p.lastOpened)
+                .sort((a, b) => b.lastOpened - a.lastOpened)
+                .slice(0, 20);
+        }
+        
+        renderGrid(list, container);
+    }
+}
+
+function showContextMenu(x, y) {
+    ui.contextMenu.style.left = `${x}px`;
+    ui.contextMenu.style.top = `${y}px`;
+    ui.contextMenu.classList.remove('hidden');
+}
+
+function hideContextMenu() {
+    ui.contextMenu.classList.add('hidden');
+    contextMenuProject = null;
+}
+
+document.addEventListener('click', (e) => {
+    if (!ui.contextMenu.contains(e.target)) {
+        hideContextMenu();
+    }
+});
+
+ui.contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
+    item.onclick = async () => {
+        if (!contextMenuProject) return;
+        const action = item.dataset.action;
+        
+        switch(action) {
+            case 'open':
+                openCommandCenter(contextMenuProject);
+                break;
+            case 'edit-tags':
+                openCommandCenter(contextMenuProject);
+                setTimeout(() => ui.projectTags.focus(), 100);
+                break;
+            case 'edit-note':
+                openCommandCenter(contextMenuProject);
+                setTimeout(() => ui.projectNote.focus(), 100);
+                break;
+            case 'git-log':
+                await showGitLog(contextMenuProject.path);
+                break;
+            case 'vscode':
+                await window.api.openVsCode(contextMenuProject.path);
+                break;
+            case 'toggle-favorite':
+                favorites = await window.api.toggleFavorite(contextMenuProject.path);
+                loadData();
+                break;
+        }
+        hideContextMenu();
+    };
+});
+
+async function showGitLog(projectPath) {
+    ui.gitLogModal.classList.remove('hidden');
+    ui.gitLogContent.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">Loading...</div>';
+    
+    try {
+        const commits = await window.api.getGitLog(projectPath, 20);
+        if (commits.length === 0) {
+            ui.gitLogContent.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">No commits found</div>';
+            return;
+        }
+        
+        ui.gitLogContent.innerHTML = commits.map(commit => `
+            <div class="git-log-item">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <span class="git-log-hash">${commit.hash}</span>
+                    <span class="git-log-meta">
+                        <span class="git-log-author">${commit.author}</span>
+                        <span>${new Date(commit.date).toLocaleString()}</span>
+                    </span>
+                </div>
+                <div class="git-log-message">${commit.message}</div>
+            </div>
+        `).join('');
+    } catch (error) {
+        ui.gitLogContent.innerHTML = `<div style="text-align: center; color: #ff4444; padding: 40px;">Error: ${error.message}</div>`;
+    }
+}
+
+ui.gitLogClose.onclick = () => {
+    ui.gitLogModal.classList.add('hidden');
+};
 
 function loadScriptsInModal(project) {
     ui.scriptList.innerHTML = '';
@@ -761,4 +1154,91 @@ ui.closeModal.onclick = () => {
     loadData(); 
 };
 
+const ccOpenEditor = document.getElementById('cc-open-editor');
+if (ccOpenEditor) {
+    ccOpenEditor.onclick = async () => {
+        const settings = await window.api.getSettings();
+        const editor = settings.defaultEditor || 'code';
+        await window.api.openEditor({ projectPath: activeProjectPath, editor });
+        await window.api.logUsage(activeProjectPath);
+    };
+}
+
 ui.openVsCode.onclick = () => { window.api.openVsCode(activeProjectPath); window.api.logUsage(activeProjectPath); };
+
+ui.viewGitLog.onclick = async () => {
+    await showGitLog(activeProjectPath);
+};
+
+window.setViewMode = (mode) => {
+    currentViewMode = mode;
+    localStorage.setItem('viewMode', mode);
+    
+    const grids = [
+        document.getElementById('all-projects-grid'),
+        document.getElementById('favorites-grid'),
+        document.getElementById('recent-grid')
+    ];
+    
+    grids.forEach(grid => {
+        if (grid) {
+            grid.className = `projects-grid ${mode}`;
+        }
+    });
+    
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    
+    const activeTab = document.querySelector('.menu-item.active')?.dataset.tab || 'dashboard';
+    if (activeTab === 'dashboard') {
+        renderGrid(currentProjects, ui.gridAll);
+    } else if (activeTab === 'favorites') {
+        renderGrid(currentProjects.filter(p => favorites.includes(p.path)), document.getElementById('favorites-grid'));
+    } else if (activeTab === 'recent') {
+        const recent = currentProjects
+            .filter(p => p.lastOpened)
+            .sort((a, b) => b.lastOpened - a.lastOpened)
+            .slice(0, 20);
+        renderGrid(recent, document.getElementById('recent-grid'));
+    }
+};
+
+function initializeViewMode() {
+    const grids = [
+        document.getElementById('all-projects-grid'),
+        document.getElementById('favorites-grid'),
+        document.getElementById('recent-grid')
+    ];
+    grids.forEach(grid => {
+        if (grid) grid.className = `projects-grid ${currentViewMode}`;
+    });
+    
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === currentViewMode);
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeViewMode);
+} else {
+    initializeViewMode();
+}
+
+let backgroundScanInterval = null;
+function startBackgroundScan() {
+    if (backgroundScanInterval) clearInterval(backgroundScanInterval);
+    backgroundScanInterval = setInterval(async () => {
+        if (!document.hidden && currentProjects.length > 0) {
+            log('backgroundScan', 'Auto-refreshing projects...');
+            await loadData(true);
+        }
+    }, 5 * 60 * 1000);
+}
+
+startBackgroundScan();
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        startBackgroundScan();
+    }
+});

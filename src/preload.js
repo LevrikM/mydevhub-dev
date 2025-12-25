@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld('api', {
     getFavorites: () => ipcRenderer.invoke('get-favorites'),
     toggleFavorite: (path) => ipcRenderer.invoke('toggle-favorite', path),
 
-    scanSmart: () => ipcRenderer.invoke('scan-smart'),
+    scanSmart: (forceRefresh) => ipcRenderer.invoke('scan-smart', forceRefresh),
     readTree: (path) => ipcRenderer.invoke('read-tree', path),
     openVsCode: (path) => ipcRenderer.invoke('open-vscode', path),
     logUsage: (path) => ipcRenderer.invoke('log-usage', path),
@@ -36,5 +36,24 @@ contextBridge.exposeInMainWorld('api', {
     setAutoUpdateSetting: (enabled) => ipcRenderer.invoke('set-auto-update-setting', enabled),
     getLatestVersion: () => ipcRenderer.invoke('get-latest-version'),
     onUpdateStatus: (cb) => ipcRenderer.on('update-status', (e, d) => cb(d)),
-    onUpdateProgress: (cb) => ipcRenderer.on('update-progress', (e, d) => cb(d))
+    onUpdateProgress: (cb) => ipcRenderer.on('update-progress', (e, d) => cb(d)),
+    
+    // Tags API
+    getTags: (projectPath) => ipcRenderer.invoke('get-tags', projectPath),
+    saveTags: (data) => ipcRenderer.invoke('save-tags', data),
+    
+    // Notes API
+    getNote: (projectPath) => ipcRenderer.invoke('get-note', projectPath),
+    saveNote: (data) => ipcRenderer.invoke('save-note', data),
+    
+    // Project order API
+    saveProjectOrder: (data) => ipcRenderer.invoke('save-project-order', data),
+    
+    // Git log API
+    getGitLog: (projectPath, count) => ipcRenderer.invoke('get-git-log', projectPath, count),
+    
+    // Editor API
+    openEditor: (data) => ipcRenderer.invoke('open-editor', data),
+    getEditorPaths: () => ipcRenderer.invoke('get-editor-paths'),
+    setEditorPath: (data) => ipcRenderer.invoke('set-editor-path', data)
 });

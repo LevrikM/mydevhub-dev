@@ -63,6 +63,7 @@
         <aside class="sidebar">
             <div class="logo logo-pulse" onclick="window.api.openExternal('https://mydevhub.vercel.app/')" title="Open website">
                 <i class="ri-code-s-slash-line"></i> myDevHub
+                <span class="logo-version" id="logo-version">v1.0.2</span>
             </div>
             
             <nav class="sidebar-nav">
@@ -125,7 +126,20 @@
 
                 <div class="section-title">
                     <span data-i18n="dashboard.yourProjects">Your Projects</span>
-                    <input type="text" id="search-input" data-i18n-placeholder="dashboard.search" placeholder="Search..." class="form-input" style="width: 200px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <div class="view-toggle">
+                            <button class="view-toggle-btn" data-mode="compact" onclick="setViewMode('compact')" title="Compact">
+                                <i class="ri-grid-line"></i>
+                            </button>
+                            <button class="view-toggle-btn active" data-mode="normal" onclick="setViewMode('normal')" title="Normal">
+                                <i class="ri-layout-grid-line"></i>
+                            </button>
+                            <button class="view-toggle-btn" data-mode="extended" onclick="setViewMode('extended')" title="Extended">
+                                <i class="ri-layout-3-line"></i>
+                            </button>
+                        </div>
+                        <input type="text" id="search-input" data-i18n-placeholder="dashboard.search" placeholder="Search..." class="form-input" style="width: 200px;">
+                    </div>
                 </div>
                 <div id="all-projects-grid" class="projects-grid">Scanning...</div>
             </div>
@@ -155,53 +169,79 @@
             <div id="view-settings" class="view-section hidden">
                 <div class="section-title" data-i18n="settings.title">Налаштування системи</div>
                 
-                <div class="settings-container settings-full-width">
-                    <div class="settings-card">
-                        <h3 class="settings-card-title" data-i18n="settings.general">Загальні</h3>
-                        <div class="form-group">
-                            <label class="form-label" data-i18n="settings.rootFolder">Коренева папка</label>
-                            <div style="display:flex; gap:10px;">
-                                <input type="text" id="setting-path-display" class="form-input" readonly>
-                                <button id="setting-change-path" class="action-btn" style="background:var(--accent); color:black;" data-i18n="settings.change">Змінити</button>
+                <div class="settings-container settings-unified">
+                    <div class="settings-unified-card">
+                        <div class="settings-section-block">
+                            <h3 class="settings-card-title" data-i18n="settings.general">Загальні</h3>
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="settings.rootFolder">Коренева папка</label>
+                                <div style="display:flex; gap:10px;">
+                                    <input type="text" id="setting-path-display" class="form-input" readonly>
+                                    <button id="setting-change-path" class="action-btn" style="background:var(--accent); color:black;" data-i18n="settings.change">Змінити</button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="form-group">
-                            <label class="form-label"><span data-i18n="settings.scanDepth">Глибина сканування</span>: <span id="scan-depth-val" style="color:var(--accent); font-weight: 700;">3</span></label>
-                            <input type="range" id="scan-depth" min="1" max="5" class="form-range" style="width:100%; accent-color:var(--accent);">
-                        </div>
-
-                        <div class="form-group">
-                            <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                                <input type="checkbox" id="setting-show-hidden" style="transform: scale(1.3); accent-color: var(--accent);">
-                                <span data-i18n="settings.showHidden">Показувати приховані файли</span>
-                            </label>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label" data-i18n="settings.language">Мова інтерфейсу</label>
-                            <select id="setting-language" class="form-input" style="width: 100%;">
-                                <option value="uk" data-i18n="lang.uk">Українська</option>
-                                <option value="en" data-i18n="lang.en">English</option>
-                                <option value="ru" data-i18n="lang.ru">Русский</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="settings-card">
-                        <h3 class="settings-card-title" data-i18n="update.version">Оновлення</h3>
-                        <div class="version-info">
-                            <div class="version-item">
-                                <span class="version-label" data-i18n="update.current">Поточна версія</span>
-                                <span class="version-value" id="current-version">1.0.0</span>
+                            <div class="form-group">
+                                <label class="form-label"><span data-i18n="settings.scanDepth">Глибина сканування</span>: <span id="scan-depth-val" style="color:var(--accent); font-weight: 700;">3</span></label>
+                                <input type="range" id="scan-depth" min="1" max="5" class="form-range" style="width:100%; accent-color:var(--accent);">
                             </div>
-                            <div class="update-status" id="update-status"></div>
-                            <div class="update-actions">
-                                <button id="check-update-btn" class="action-btn" style="background: var(--accent); color: black;" data-i18n="update.check">Перевірити оновлення</button>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="auto-update-checkbox" style="transform: scale(1.2); accent-color: var(--accent);">
-                                    <span data-i18n="update.auto">Автоматичне оновлення</span>
+
+                            <div class="form-group">
+                                <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                    <input type="checkbox" id="setting-show-hidden" style="transform: scale(1.3); accent-color: var(--accent);">
+                                    <span data-i18n="settings.showHidden">Показувати приховані файли</span>
                                 </label>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="settings.language">Мова інтерфейсу</label>
+                                <select id="setting-language" class="form-select">
+                                    <option value="uk" data-i18n="lang.uk">Українська</option>
+                                    <option value="en" data-i18n="lang.en">English</option>
+                                    <option value="ru" data-i18n="lang.ru">Русский</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-divider"></div>
+
+                        <div class="settings-section-block">
+                            <h3 class="settings-card-title" data-i18n="settings.editors">Редактори</h3>
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="settings.defaultEditor">Редактор за замовчуванням</label>
+                                <select id="setting-default-editor" class="form-select">
+                                    <option value="code">Visual Studio Code</option>
+                                    <option value="webstorm">WebStorm</option>
+                                    <option value="sublime">Sublime Text</option>
+                                    <option value="atom">Atom</option>
+                                    <option value="notepad++">Notepad++</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" data-i18n="settings.editorPaths">Шляхи до редакторів (опціонально)</label>
+                                <div id="editor-paths-list" style="display: flex; flex-direction: column; gap: 10px;">
+                                </div>
+                                <button id="btn-refresh-editors" class="action-btn" style="margin-top: 10px; background: var(--accent); color: black;" data-i18n="settings.refreshEditors">Оновити список</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-divider"></div>
+
+                        <div class="settings-section-block">
+                            <h3 class="settings-card-title" data-i18n="update.version">Оновлення</h3>
+                            <div class="version-info">
+                                <div class="version-item">
+                                    <span class="version-label" data-i18n="update.current">Поточна версія</span>
+                                    <span class="version-value" id="current-version">1.0.0</span>
+                                </div>
+                                <div class="update-status" id="update-status"></div>
+                                <div class="update-actions">
+                                    <button id="check-update-btn" class="action-btn" style="background: var(--accent); color: black;" data-i18n="update.check">Перевірити оновлення</button>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="auto-update-checkbox" style="transform: scale(1.2); accent-color: var(--accent);">
+                                        <span data-i18n="update.auto">Автоматичне оновлення</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -242,6 +282,20 @@
                 </div>
 
                 <div class="scripts-panel" style="padding: 20px;">
+                    <div style="font-size:12px; color:#888; margin-bottom:15px;" data-i18n="cc.projectInfo">PROJECT INFO</div>
+                    <div style="margin-bottom: 20px;">
+                        <div style="margin-bottom: 10px;">
+                            <label style="font-size: 12px; color: #888; display: block; margin-bottom: 5px;" data-i18n="cc.tags">Tags (comma separated)</label>
+                            <input type="text" id="cc-project-tags" class="form-input" placeholder="React, Node.js, In Progress">
+                            <div id="cc-tags-display" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;"></div>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <label style="font-size: 12px; color: #888; display: block; margin-bottom: 5px;" data-i18n="cc.note">Note</label>
+                            <textarea id="cc-project-note" class="form-input" placeholder="Project description or notes..." style="min-height: 60px; resize: vertical; font-family: var(--font-main);"></textarea>
+                        </div>
+                        <button id="btn-save-project-info" class="action-btn" style="background: var(--accent); color: black;" data-i18n="cc.saveInfo">Save</button>
+                    </div>
+                    
                     <div style="font-size:12px; color:#888; margin-bottom:10px;" data-i18n="cc.scriptsActions">SCRIPTS & ACTIONS</div>
                     <div id="cc-scripts-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:15px;"></div>
                     
@@ -254,11 +308,36 @@
 
                 <div class="terminal-window" id="cc-terminal">> Ready...</div>
                 
-                <div style="padding: 10px; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 10px;">
-                    <button class="action-btn" id="cc-open-vscode" data-i18n="cc.openVscode">Open in VS Code</button>
+                <div style="padding: 10px; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                    <button class="action-btn" id="cc-view-git-log" style="background: var(--accent-secondary);" data-i18n="cc.viewGitLog">View Git Log</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="action-btn" id="cc-open-vscode" data-i18n="cc.openVscode">Open in VS Code</button>
+                    </div>
                 </div>
             </main>
         </div>
+    </div>
+
+    <div id="git-log-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width: 700px; max-height: 80vh;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;" data-i18n="gitLog.title">Git Commit History</h2>
+                <button class="win-btn" id="git-log-close">×</button>
+            </div>
+            <div id="git-log-content" style="overflow-y: auto; max-height: 60vh; padding-right: 10px;">
+                <div style="text-align: center; color: #666; padding: 40px;" data-i18n="gitLog.loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="project-context-menu" class="context-menu hidden" style="position: fixed; background: var(--bg-glass); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-width: 200px; z-index: 10000; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+        <div class="context-menu-item" data-action="open"><i class="ri-folder-open-line"></i> <span data-i18n="context.open">Open</span></div>
+        <div class="context-menu-item" data-action="edit-tags"><i class="ri-price-tag-3-line"></i> <span data-i18n="context.editTags">Edit Tags</span></div>
+        <div class="context-menu-item" data-action="edit-note"><i class="ri-file-edit-line"></i> <span data-i18n="context.editNote">Edit Note</span></div>
+        <div class="context-menu-item" data-action="git-log"><i class="ri-git-commit-line"></i> <span data-i18n="context.gitLog">Git Log</span></div>
+        <div style="height: 1px; background: var(--border); margin: 4px 0;"></div>
+        <div class="context-menu-item" data-action="vscode"><i class="ri-code-s-slash-line"></i> <span data-i18n="context.openVscode">Open in VS Code</span></div>
+        <div class="context-menu-item" data-action="toggle-favorite"><i class="ri-star-line"></i> <span data-i18n="context.toggleFavorite">Toggle Favorite</span></div>
     </div>
 
     <div id="update-notification" class="update-notification hidden">

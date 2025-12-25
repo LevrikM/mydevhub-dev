@@ -1,6 +1,6 @@
 {
   "name": "mydevhub",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Your command center for managing development projects. Organize, track, and launch your projects with ease.",
   "author": "LevrikM",
   "main": "src/main.js",
